@@ -45,7 +45,7 @@ router.post(
         phone,
         email,
         bio,
-        profileImg: profImg || "", // optional
+        profileImg: profImg,
       });
 
       res.status(201).json(newDoctor);
