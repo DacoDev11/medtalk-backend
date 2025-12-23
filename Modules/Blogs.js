@@ -10,8 +10,9 @@ const postSchema = new Schema({
     type: String,
     required: true,
   },
-  category: {
-    type: String,
+  categoryId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "BlogCat",
     required: true,
   },
   slug: {

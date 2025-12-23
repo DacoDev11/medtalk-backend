@@ -3,6 +3,14 @@ const { Schema } = mongoose;
 
 const DoctorSchema = new Schema(
   {
+    // 🔗 Link doctor profile with auth user
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+      unique: true,
+    },
+
     name: {
       type: String,
       required: true,
@@ -28,11 +36,11 @@ const DoctorSchema = new Schema(
     },
     email: {
       type: String,
-      unique: true, // doctors shouldn't repeat email
-      sparse: true, // allow multiple without email
+      unique: true,
+      sparse: true,
     },
     profileImg: {
-      type: String, // Cloudinary URL
+      type: String,
     },
     bio: {
       type: String,
@@ -40,7 +48,7 @@ const DoctorSchema = new Schema(
     status: {
       type: String,
       enum: ["pending", "approved", "rejected"],
-      default: "approved", // if admin adds directly, it's approved
+      default: "approved",
     },
   },
   { timestamps: true }

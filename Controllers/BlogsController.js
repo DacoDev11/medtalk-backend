@@ -1,31 +1,54 @@
 import express from "express";
 import Blogs from "../Modules/Blogs.js";
 import errorHandling from "../Middlewares/ErrorHandling.js";
+import uploadFile from "../Middlewares/ImageFilter.js";
+import { v2 as cloudinaryv2 } from "cloudinary";
 
 const router = express.Router();
 
+// Create post
 router.post(
   "/createpost",
+  uploadFile.single("featuredImage"),
   errorHandling(async (req, res) => {
-    const { title, content, category, slug, meta, featuredImage } = req.body;
+    const { title, content, categoryId, slug, meta } = req.body;
 
-    // Check if title already exists
+    if (!title || !content || !categoryId || !slug) {
+      return res.status(400).json({ message: "Please fill all required fields" });
+    }
+
     const checkTitle = await Blogs.findOne({ title });
     if (checkTitle) {
       return res.status(400).json({ message: "Title already exists" });
     }
 
-    // Create new blog post
+    let featuredImageUrl = "";
+    if (req.file) {
+      try {
+        const uploadedImage = await cloudinaryv2.uploader.upload(req.file.path);
+        featuredImageUrl = uploadedImage.secure_url;
+      } catch (err) {
+        console.error("Error uploading image to Cloudinary:", err);
+        return res.status(500).json({ message: "Image upload failed" });
+      }
+    }
+
     const post = await Blogs.create({
       title,
       content,
-      category,
+      categoryId,
       slug,
       meta,
-      featuredImage,
+      featuredImage: featuredImageUrl,
     });
 
-    res.status(201).json({ message: "Blog post created successfully", post });
+    // ✅ Populate and send back
+    const populatedPost = await Blogs.findById(post._id).populate("categoryId", "blogCategory");
+
+    res.status(201).json({
+      message: "Blog post created successfully",
+      post: populatedPost,
+    });
   })
 );
 
@@ -33,7 +56,9 @@ router.post(
 router.get(
   "/getallposts",
   errorHandling(async (req, res) => {
-    const allposts = await Blogs.find({}).sort({ date: -1 });
+    const allposts = await Blogs.find({})
+      .populate("categoryId", "blogCategory")
+      .sort({ date: -1 });
     res.json(allposts);
   })
 );
@@ -42,7 +67,7 @@ router.get(
 router.get(
   "/getpost/:slug",
   errorHandling(async (req, res) => {
-    const post = await Blogs.findOne({ slug: req.params.slug });
+    const post = await Blogs.findOne({ slug: req.params.slug }).populate("categoryId", "blogCategory");
     if (!post) return res.status(404).json({ message: "Post not found" });
     res.json(post);
   })
@@ -58,23 +83,29 @@ router.delete(
   })
 );
 
-// Update post
+// ✅ FIXED: Update post
 router.put(
   "/editposts/:id",
   errorHandling(async (req, res) => {
-    const { title, category, content, slug, featuredImage } = req.body;
+    const { title, categoryId, content, slug, meta, featuredImage } = req.body;
 
     const newPostData = {};
     if (title) newPostData.title = title;
-    if (category) newPostData.category = category;
+    if (categoryId) newPostData.categoryId = categoryId;
     if (content) newPostData.content = content;
     if (slug) newPostData.slug = slug;
+    if (meta) newPostData.meta = meta;
     if (featuredImage) newPostData.featuredImage = featuredImage;
 
     let post = await Blogs.findById(req.params.id);
     if (!post) return res.status(404).json({ message: "Post not found" });
 
-    post = await Blogs.findByIdAndUpdate(req.params.id, { $set: newPostData }, { new: true });
+    post = await Blogs.findByIdAndUpdate(
+      req.params.id,
+      { $set: newPostData },
+      { new: true }
+    ).populate("categoryId", "blogCategory");
+
     res.json({ message: "Post updated successfully", post });
   })
 );

@@ -3,6 +3,14 @@ const { Schema } = mongoose;
 
 const TrainerSchema = new Schema(
   {
+    // 🔗 Link trainer profile with auth user
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+      unique: true,
+    },
+
     name: {
       type: String,
       required: true,
@@ -29,7 +37,7 @@ const TrainerSchema = new Schema(
       sparse: true,
     },
     profileImg: {
-      type: String, // e.g. Cloudinary or local upload path
+      type: String,
     },
     bio: {
       type: String,
