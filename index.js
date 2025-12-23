@@ -13,10 +13,10 @@ import cookieParser from "cookie-parser";
 mongoDbConnection();
 const app = express();
 
-// ✅ 1. CORS first - MUST come before other middleware
+// ✅ 1. CORS first - Allow all origins dynamically
 app.use(
   cors({
-    origin: "http://localhost:5173", // your React frontend URL
+    origin: true, // dynamically reflect the requesting origin
     credentials: true, // allow sending cookies
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
