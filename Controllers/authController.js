@@ -198,6 +198,7 @@ router.put(
 );
 
 /* ------------------------ Login ------------------------ */
+/* ------------------------ Login ------------------------ */
 router.post(
   "/login",
   errorHandling(async (req, res) => {
@@ -217,16 +218,11 @@ router.post(
 
     const token = generateToken(user._id, user.role);
 
-    res.cookie("medtalk_token", token, {
-      httpOnly: true,
-      sameSite: "none",
-      maxAge: 24 * 60 * 60 * 1000,
-    });
-
+    // ✅ REMOVED cookie - just return token
     res.json({
       message: "Login successful",
       user: { id: user._id, name: user.name, role: user.role },
-      token,
+      token, // Frontend will store this in localStorage
     });
   })
 );

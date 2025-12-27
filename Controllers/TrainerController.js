@@ -68,15 +68,18 @@ router.get("/getTrainers", async (req, res) => {
 });
 
 // Get My Profile (Trainer) - For logged-in trainer to view their own profile
+// Get My Profile (Trainer) - For logged-in trainer to view their own profile
 router.get(
   "/my-profile",
   errorHandling(async (req, res) => {
-    // Get user from cookie
-    const token = req.cookies.medtalk_token;
+    // ✅ Get token from Authorization header instead of cookie
+    const authHeader = req.headers.authorization;
     
-    if (!token) {
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return res.status(401).json({ message: "Not authenticated" });
     }
+
+    const token = authHeader.split(' ')[1];
 
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
