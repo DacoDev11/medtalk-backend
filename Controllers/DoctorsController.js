@@ -1,10 +1,10 @@
 import express from "express";
 import Doctor from "../Modules/Doctor.js";
-import User from "../Modules/User.js"; // ✅ ADD THIS
+import User from "../Modules/User.js";
 import errorHandling from "../Middlewares/ErrorHandling.js";
 import cloudinaryv2 from "../Cloudinary.js";
 import upload from "../Middlewares/ImageFilter.js";
-import jwt from "jsonwebtoken"; // ✅ ADD THIS
+import jwt from "jsonwebtoken";
 
 const router = express.Router();
 
@@ -115,11 +115,9 @@ router.put(
 );
 
 // Get My Profile (Doctor) - For logged-in doctor to view their own profile
-// Get My Profile (Doctor) - For logged-in doctor to view their own profile
 router.get(
   "/my-profile",
   errorHandling(async (req, res) => {
-    // ✅ Get token from Authorization header instead of cookie
     const authHeader = req.headers.authorization;
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -136,7 +134,6 @@ router.get(
         return res.status(403).json({ message: "Access denied" });
       }
 
-      // Find doctor profile
       const doctor = await Doctor.findOne({ user: user._id });
 
       if (!doctor) {
@@ -150,6 +147,67 @@ router.get(
   })
 );
 
+// ✅ NEW: Update My Profile (Doctor) - For logged-in doctor to update their own profile
+router.put(
+  "/update-my-profile",
+  upload.fields([{ name: "profileImg", maxCount: 1 }]),
+  errorHandling(async (req, res) => {
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+
+    const token = authHeader.split(' ')[1];
+
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const user = await User.findById(decoded.id);
+
+      if (!user || user.role !== 'doctor') {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const doctor = await Doctor.findOne({ user: user._id });
+
+      if (!doctor) {
+        return res.status(404).json({ message: "Doctor profile not found" });
+      }
+
+      // Prepare updates (excluding email for security)
+      const updates = { ...req.body };
+      delete updates.email; // ✅ Prevent email updates
+
+      // Handle new image upload if provided
+      if (req.files && req.files.profileImg) {
+        const uploadProfileImg = await cloudinaryv2.uploader.upload(
+          req.files.profileImg[0].path
+        );
+        updates.profileImg = uploadProfileImg.secure_url;
+      }
+
+      // Update doctor profile
+      const updatedDoctor = await Doctor.findByIdAndUpdate(
+        doctor._id,
+        updates,
+        { new: true }
+      );
+
+      res.json({
+        success: true,
+        message: "Profile updated successfully",
+        data: updatedDoctor
+      });
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      return res.status(500).json({ 
+        message: "Error updating profile", 
+        error: error.message 
+      });
+    }
+  })
+);
+
 // DELETE doctor by ID
 router.delete("/deleteDoctor/:id", async (req, res) => {
   try {
@@ -159,10 +217,6 @@ router.delete("/deleteDoctor/:id", async (req, res) => {
     if (!doctor) {
       return res.status(404).json({ message: "Doctor not found" });
     }
-
-    // Optionally: If you want to delete image from Cloudinary too
-    // (only if you store public_id, which you currently don't)
-    // You can skip this part safely.
 
     await Doctor.findByIdAndDelete(id);
 

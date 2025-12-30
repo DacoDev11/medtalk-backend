@@ -68,11 +68,9 @@ router.get("/getTrainers", async (req, res) => {
 });
 
 // Get My Profile (Trainer) - For logged-in trainer to view their own profile
-// Get My Profile (Trainer) - For logged-in trainer to view their own profile
 router.get(
   "/my-profile",
   errorHandling(async (req, res) => {
-    // ✅ Get token from Authorization header instead of cookie
     const authHeader = req.headers.authorization;
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -89,7 +87,6 @@ router.get(
         return res.status(403).json({ message: "Access denied" });
       }
 
-      // Find trainer profile
       const trainer = await Trainer.findOne({ user: user._id });
 
       if (!trainer) {
@@ -99,6 +96,67 @@ router.get(
       res.json(trainer);
     } catch (error) {
       return res.status(401).json({ message: "Invalid token" });
+    }
+  })
+);
+
+// ✅ NEW: Update My Profile (Trainer) - For logged-in trainer to update their own profile
+router.put(
+  "/update-my-profile",
+  upload.fields([{ name: "profileImg", maxCount: 1 }]),
+  errorHandling(async (req, res) => {
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+
+    const token = authHeader.split(' ')[1];
+
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const user = await User.findById(decoded.id);
+
+      if (!user || user.role !== 'trainer') {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const trainer = await Trainer.findOne({ user: user._id });
+
+      if (!trainer) {
+        return res.status(404).json({ message: "Trainer profile not found" });
+      }
+
+      // Prepare updates (excluding email for security)
+      const updates = { ...req.body };
+      delete updates.email; // ✅ Prevent email updates
+
+      // Handle new image upload if provided
+      if (req.files && req.files.profileImg) {
+        const uploadedProfile = await cloudinaryV2.uploader.upload(
+          req.files.profileImg[0].path
+        );
+        updates.profileImg = uploadedProfile.secure_url;
+      }
+
+      // Update trainer profile
+      const updatedTrainer = await Trainer.findByIdAndUpdate(
+        trainer._id,
+        updates,
+        { new: true }
+      );
+
+      res.json({
+        success: true,
+        message: "Profile updated successfully",
+        data: updatedTrainer
+      });
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      return res.status(500).json({ 
+        message: "Error updating profile", 
+        error: error.message 
+      });
     }
   })
 );
@@ -170,8 +228,6 @@ router.delete("/deleteTrainer/:id", async (req, res) => {
     if (!trainer) {
       return res.status(404).json({ success: false, message: "Trainer not found" });
     }
-
-    // Optional: If using Cloudinary, you can delete image here later if needed
 
     await Trainer.findByIdAndDelete(req.params.id);
 
