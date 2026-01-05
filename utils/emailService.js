@@ -8,23 +8,30 @@ export const sendWelcomeEmail = async (userEmail, userName, resetToken) => {
   try {
     // Check credentials
     console.log('🔍 Checking email credentials...');
+    console.log('SMTP Host:', process.env.SMTP_HOST ? '✅ Found' : '❌ Missing');
+    console.log('SMTP Port:', process.env.SMTP_PORT ? '✅ Found' : '❌ Missing');
     console.log('Email User:', process.env.EMAIL_USER ? '✅ Found' : '❌ Missing');
     console.log('Email Pass:', process.env.EMAIL_PASS ? '✅ Found' : '❌ Missing');
     
-    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+    if (!process.env.SMTP_HOST || !process.env.SMTP_PORT || !process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
       console.error('❌ Email credentials not configured in .env file');
       return { 
         success: false, 
-        error: 'Email credentials missing. Please add EMAIL_USER and EMAIL_PASS to .env file' 
+        error: 'Email credentials missing. Please add SMTP_HOST, SMTP_PORT, EMAIL_USER and EMAIL_PASS to .env file' 
       };
     }
 
-    // Create transporter
+    // Create transporter with custom SMTP settings
     const transporter = nodemailer.createTransport({
-      service: 'gmail',
+      host: process.env.SMTP_HOST,
+      port: parseInt(process.env.SMTP_PORT),
+      secure: true, // true for port 465
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
+      },
+      tls: {
+        rejectUnauthorized: false
       }
     });
 
