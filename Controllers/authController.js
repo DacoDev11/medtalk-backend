@@ -101,6 +101,7 @@ router.get(
 );
 
 /* ------------------------ Admin: Approve Request ------------------------ */
+/* ------------------------ Admin: Approve Request ------------------------ */
 router.put(
   "/requests/:id/approve",
   errorHandling(async (req, res) => {
@@ -159,14 +160,20 @@ router.put(
       }
 
       /* ---------------- Send Welcome Email ---------------- */
+      console.log('🚀 Calling sendWelcomeEmail...');
       const emailResult = await sendWelcomeEmail(
         user.email,
         user.name,
         resetToken
       );
 
+      console.log('📬 Email Result:', emailResult);
+
       if (!emailResult.success) {
         console.error('⚠️ Warning: Profile created but email failed to send');
+        console.error('Error details:', emailResult.error);
+      } else {
+        console.log('✅ Welcome email sent successfully!');
       }
 
     } catch (error) {

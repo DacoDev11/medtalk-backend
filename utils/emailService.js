@@ -4,6 +4,9 @@ export const sendWelcomeEmail = async (userEmail, userName, resetToken) => {
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log('📧 EMAIL SERVICE CALLED (Nodemailer)');
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log('Sending to:', userEmail);
+  console.log('User name:', userName);
+  console.log('Reset token:', resetToken ? 'Present' : 'Missing');
   
   try {
     // Check credentials
@@ -21,6 +24,10 @@ export const sendWelcomeEmail = async (userEmail, userName, resetToken) => {
       };
     }
 
+    console.log('🔧 Creating transporter...');
+    console.log('Using host:', process.env.SMTP_HOST);
+    console.log('Using port:', process.env.SMTP_PORT);
+
     // Create transporter with custom SMTP settings
     const transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
@@ -32,16 +39,20 @@ export const sendWelcomeEmail = async (userEmail, userName, resetToken) => {
       },
       tls: {
         rejectUnauthorized: false
-      }
+      },
+      debug: true, // Enable debug output
+      logger: true // Log to console
     });
 
     // Verify connection
+    console.log('🔌 Verifying SMTP connection...');
     await transporter.verify();
-    console.log('✅ SMTP connection verified');
+    console.log('✅ SMTP connection verified successfully!');
 
     const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
 
     console.log('📝 Email Details:');
+    console.log('   From:', process.env.EMAIL_USER);
     console.log('   To:', userEmail);
     console.log('   Name:', userName);
     console.log('   Reset Link:', resetLink);
@@ -125,6 +136,7 @@ export const sendWelcomeEmail = async (userEmail, userName, resetToken) => {
     `;
 
     // Send email
+    console.log('📮 Attempting to send email...');
     const info = await transporter.sendMail({
       from: `"MedTalks Team" <${process.env.EMAIL_USER}>`,
       to: userEmail,
@@ -135,6 +147,7 @@ export const sendWelcomeEmail = async (userEmail, userName, resetToken) => {
 
     console.log('✅ Email sent successfully!');
     console.log('✅ Message ID:', info.messageId);
+    console.log('✅ Response:', info.response);
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     
     return { success: true, messageId: info.messageId };
@@ -144,6 +157,7 @@ export const sendWelcomeEmail = async (userEmail, userName, resetToken) => {
     console.error('❌ EMAIL SENDING FAILED');
     console.error('Error message:', error.message);
     console.error('Error code:', error.code);
+    console.error('Error command:', error.command);
     console.error('Full error:', error);
     console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     return { success: false, error: error.message };
