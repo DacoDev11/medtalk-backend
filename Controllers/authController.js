@@ -9,7 +9,7 @@ import errorHandling from "../Middlewares/ErrorHandling.js";
 import { sendWelcomeEmail } from '../utils/emailService.js';
 import upload from "../Middlewares/ImageFilter.js";
 import cloudinaryV2 from "../Cloudinary.js";
-
+import nodemailer from "nodemailer";
 const router = express.Router();
 
 /* ------------------------ Helper: Generate JWT ------------------------ */
@@ -354,6 +354,133 @@ router.post(
         password: "Admin@123",
       },
     });
+  })
+);
+
+
+
+
+/* ------------------------ Contact Form Email ------------------------ */
+router.post(
+  "/contact",
+  errorHandling(async (req, res) => {
+    const { name, email, subject, message } = req.body;
+
+    console.log('📧 Contact form submission received');
+    console.log('From:', name, email);
+
+    // Validate input
+    if (!name || !email || !subject || !message) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "All fields are required" 
+      });
+    }
+
+    try {
+      // Create transporter
+      const transporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port: parseInt(process.env.SMTP_PORT),
+        secure: true,
+        auth: {
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_PASS
+        },
+        tls: {
+          rejectUnauthorized: false
+        }
+      });
+
+      // Email to you (admin/business owner)
+      const adminEmailHTML = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+              line-height: 1.6;
+              color: #333;
+            }
+            .container {
+              max-width: 600px;
+              margin: 0 auto;
+              padding: 20px;
+            }
+            .header {
+              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+              color: white;
+              padding: 30px;
+              text-align: center;
+              border-radius: 10px 10px 0 0;
+            }
+            .content {
+              background: #f9f9f9;
+              padding: 30px;
+              border-radius: 0 0 10px 10px;
+            }
+            .info-row {
+              margin: 15px 0;
+              padding: 10px;
+              background: white;
+              border-radius: 5px;
+            }
+            .label {
+              font-weight: bold;
+              color: #667eea;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>New Contact Form Submission</h1>
+            </div>
+            <div class="content">
+              <div class="info-row">
+                <span class="label">From:</span> ${name}
+              </div>
+              <div class="info-row">
+                <span class="label">Email:</span> ${email}
+              </div>
+              <div class="info-row">
+                <span class="label">Subject:</span> ${subject}
+              </div>
+              <div class="info-row">
+                <span class="label">Message:</span><br><br>
+                ${message.replace(/\n/g, '<br>')}
+              </div>
+            </div>
+          </div>
+        </body>
+        </html>
+      `;
+
+      // Send email to admin
+      await transporter.sendMail({
+        from: `"MedTalks Contact Form" <${process.env.EMAIL_USER}>`,
+        to: process.env.EMAIL_USER, // Your business email
+        replyTo: email, // Customer's email for easy reply
+        subject: `Contact Form: ${subject}`,
+        html: adminEmailHTML,
+        text: `New contact form submission from ${name} (${email})\n\nSubject: ${subject}\n\nMessage:\n${message}`
+      });
+
+      console.log('✅ Contact email sent successfully');
+
+      res.json({
+        success: true,
+        message: "Message sent successfully! We'll get back to you soon."
+      });
+
+    } catch (error) {
+      console.error('❌ Contact email error:', error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to send message. Please try again or contact us directly."
+      });
+    }
   })
 );
 
