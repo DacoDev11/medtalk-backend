@@ -50,6 +50,49 @@ const DoctorSchema = new Schema(
       enum: ["pending", "approved", "rejected"],
       default: "approved",
     },
+
+    // 🆕 Clinic / address details (shown in Clinic Info card)
+    address: {
+      type: String, // e.g. "1st Floor, Samha Plaza, Behind Safeer Hypermarket, Ajman, UAE"
+    },
+    clinicHours: {
+      type: String, // e.g. "Open Today, 08:00 - 23:00" (kept simple as free text for now)
+    },
+    mapLink: {
+      type: String, // Google Maps URL for "Get Directions"
+    },
+
+    // 🆕 Profile depth fields (Okadoc-style accordion sections)
+    expertise: {
+      type: [String], // e.g. ["Newborn Care", "Childhood Vaccinations", "Growth Disorders"]
+      default: [],
+    },
+    languages: {
+      type: [String], // e.g. ["English", "Hindi", "Arabic"]
+      default: [],
+    },
+    education: [
+      {
+        degree: { type: String }, // e.g. "MD - Paediatrics"
+        institution: { type: String }, // e.g. "Pandit BD Sharma PGIMS"
+        year: { type: String }, // e.g. "2006"
+      },
+    ],
+    memberships: {
+      type: [String], // e.g. ["Indian Academy of Paediatrics"]
+      default: [],
+    },
+
+    // 🆕 Review aggregates (kept on the doctor doc for fast reads;
+    // recalculated whenever a review is approved/deleted)
+    ratingAverage: {
+      type: Number,
+      default: 0,
+    },
+    ratingCount: {
+      type: Number,
+      default: 0,
+    },
   },
   { timestamps: true }
 );

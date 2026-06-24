@@ -8,6 +8,23 @@ import jwt from "jsonwebtoken";
 
 const router = express.Router();
 
+/* ------------------------------------------------------------------ */
+/* Helper: safely parse fields that arrive as JSON strings via         */
+/* multipart/form-data (expertise, languages, education, memberships). */
+/* Falls back to an empty array if missing or malformed, so a bad      */
+/* payload never crashes the request.                                  */
+/* ------------------------------------------------------------------ */
+const parseArrayField = (value) => {
+  if (!value) return [];
+  if (Array.isArray(value)) return value;
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
 router.post(
   "/addDoctor",
   upload.fields([{ name: "profileImg", maxCount: 1 }]),
@@ -22,6 +39,9 @@ router.post(
         phone,
         email,
         bio,
+        address,
+        clinicHours,
+        mapLink,
       } = req.body;
 
       if (!name || !specialization || !experience || !city) {
@@ -38,6 +58,12 @@ router.post(
         profImg = uploadProfileImg.secure_url;
       }
 
+      // 🆕 Parse the structured fields sent as JSON strings from the form
+      const expertise = parseArrayField(req.body.expertise);
+      const languages = parseArrayField(req.body.languages);
+      const education = parseArrayField(req.body.education);
+      const memberships = parseArrayField(req.body.memberships);
+
       const newDoctor = await Doctor.create({
         name,
         specialization,
@@ -48,6 +74,13 @@ router.post(
         email,
         bio,
         profileImg: profImg,
+        address,
+        clinicHours,
+        mapLink,
+        expertise,
+        languages,
+        education,
+        memberships,
       });
 
       res.status(201).json(newDoctor);
@@ -88,7 +121,7 @@ router.put(
   async (req, res) => {
     try {
       const { id } = req.params;
-      const updates = req.body;
+      const updates = { ...req.body };
 
       // Handle new image upload if provided
       if (req.files && req.files.profileImg) {
@@ -96,6 +129,22 @@ router.put(
           req.files.profileImg[0].path
         );
         updates.profileImg = uploadProfileImg.secure_url;
+      }
+
+      // 🆕 Parse the structured fields sent as JSON strings from the form.
+      // Only overwrite if the field was actually sent, so partial updates
+      // (e.g. from a form that doesn't touch these fields) don't wipe them.
+      if (req.body.expertise !== undefined) {
+        updates.expertise = parseArrayField(req.body.expertise);
+      }
+      if (req.body.languages !== undefined) {
+        updates.languages = parseArrayField(req.body.languages);
+      }
+      if (req.body.education !== undefined) {
+        updates.education = parseArrayField(req.body.education);
+      }
+      if (req.body.memberships !== undefined) {
+        updates.memberships = parseArrayField(req.body.memberships);
       }
 
       const updatedDoctor = await Doctor.findByIdAndUpdate(id, updates, {
@@ -147,7 +196,7 @@ router.get(
   })
 );
 
-// ✅ NEW: Update My Profile (Doctor) - For logged-in doctor to update their own profile
+// ✅ Update My Profile (Doctor) - For logged-in doctor to update their own profile
 router.put(
   "/update-my-profile",
   upload.fields([{ name: "profileImg", maxCount: 1 }]),
@@ -184,6 +233,20 @@ router.put(
           req.files.profileImg[0].path
         );
         updates.profileImg = uploadProfileImg.secure_url;
+      }
+
+      // 🆕 Parse the structured fields sent as JSON strings from the form
+      if (req.body.expertise !== undefined) {
+        updates.expertise = parseArrayField(req.body.expertise);
+      }
+      if (req.body.languages !== undefined) {
+        updates.languages = parseArrayField(req.body.languages);
+      }
+      if (req.body.education !== undefined) {
+        updates.education = parseArrayField(req.body.education);
+      }
+      if (req.body.memberships !== undefined) {
+        updates.memberships = parseArrayField(req.body.memberships);
       }
 
       // Update doctor profile

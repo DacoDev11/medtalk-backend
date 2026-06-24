@@ -19,6 +19,23 @@ const generateToken = (userId, role) => {
   });
 };
 
+/* ------------------------------------------------------------------ */
+/* Helper: safely parse fields that arrive as JSON strings via         */
+/* multipart/form-data (expertise, languages, education, memberships). */
+/* Falls back to an empty array if missing or malformed, so a bad      */
+/* payload never crashes the request.                                  */
+/* ------------------------------------------------------------------ */
+const parseArrayField = (value) => {
+  if (!value) return [];
+  if (Array.isArray(value)) return value;
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
 /* ------------------------ Register Request ------------------------ */
 router.post(
   "/request-register",
@@ -34,6 +51,9 @@ router.post(
       experience,
       hospital,
       bio,
+      address,
+      clinicHours,
+      mapLink,
     } = req.body;
 
     if (!name || !email || !role) {
@@ -61,10 +81,16 @@ router.post(
         profileImgUrl = uploadedImg.secure_url;
         console.log("✅ Profile image uploaded:", profileImgUrl);
       } catch (error) {
-        console.error("❌ Image upload error:", error);
+        console.error(" Image upload error:", error);
         // Continue without image if upload fails
       }
     }
+
+    // 🆕 Parse the structured fields sent as JSON strings from the form
+    const expertise = parseArrayField(req.body.expertise);
+    const languages = parseArrayField(req.body.languages);
+    const education = parseArrayField(req.body.education);
+    const memberships = parseArrayField(req.body.memberships);
 
     const newUser = await User.create({
       name,
@@ -82,6 +108,15 @@ router.post(
       hospital,
       bio,
       profileImg: profileImgUrl,
+
+      // 🆕 Additional profile depth fields
+      address,
+      clinicHours,
+      mapLink,
+      expertise,
+      languages,
+      education,
+      memberships,
     });
 
     res.status(201).json({
@@ -100,7 +135,6 @@ router.get(
   })
 );
 
-/* ------------------------ Admin: Approve Request ------------------------ */
 /* ------------------------ Admin: Approve Request ------------------------ */
 router.put(
   "/requests/:id/approve",
@@ -134,6 +168,17 @@ router.put(
             bio: user.bio || "Profile created upon approval",
             profileImg: user.profileImg || "",
             status: "approved",
+
+            // 🆕 Carry the additional profile fields over from the
+            // registration request, so nothing collected at sign-up
+            // is lost during approval.
+            address: user.address || "",
+            clinicHours: user.clinicHours || "",
+            mapLink: user.mapLink || "",
+            expertise: user.expertise || [],
+            languages: user.languages || [],
+            education: user.education || [],
+            memberships: user.memberships || [],
           });
           console.log("✅ Doctor profile created with image");
         }
@@ -160,7 +205,7 @@ router.put(
       }
 
       /* ---------------- Send Welcome Email ---------------- */
-      console.log('🚀 Calling sendWelcomeEmail...');
+      console.log(' Calling sendWelcomeEmail...');
       const emailResult = await sendWelcomeEmail(
         user.email,
         user.name,
@@ -177,7 +222,7 @@ router.put(
       }
 
     } catch (error) {
-      console.error("❌ Profile creation error:", error);
+      console.error(" Profile creation error:", error);
       return res.status(500).json({
         message: "User approved but profile creation failed",
         error: error.message
@@ -205,7 +250,6 @@ router.put(
 );
 
 /* ------------------------ Login ------------------------ */
-/* ------------------------ Login ------------------------ */
 router.post(
   "/login",
   errorHandling(async (req, res) => {
@@ -225,11 +269,10 @@ router.post(
 
     const token = generateToken(user._id, user.role);
 
-    // ✅ REMOVED cookie - just return token
     res.json({
       message: "Login successful",
       user: { id: user._id, name: user.name, role: user.role },
-      token, // Frontend will store this in localStorage
+      token,
     });
   })
 );
@@ -293,23 +336,20 @@ router.post(
       return res.status(400).json({ message: "Password must be at least 6 characters" });
     }
 
-    // Find user with this reset token
     const user = await User.findOne({
       resetToken: token,
       resetTokenExpiry: { $gt: Date.now() }
     });
 
     if (!user) {
-      console.log('❌ Invalid or expired token');
+      console.log(' Invalid or expired token');
       return res.status(400).json({ message: "Invalid or expired reset token" });
     }
 
     console.log('✅ Valid token found for user:', user.email);
 
-    // Hash new password
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    // Update user password and clear reset token
     user.password = hashedPassword;
     user.resetToken = undefined;
     user.resetTokenExpiry = undefined;
@@ -357,9 +397,6 @@ router.post(
   })
 );
 
-
-
-
 /* ------------------------ Contact Form Email ------------------------ */
 router.post(
   "/contact",
@@ -369,16 +406,14 @@ router.post(
     console.log('📧 Contact form submission received');
     console.log('From:', name, email);
 
-    // Validate input
     if (!name || !email || !subject || !message) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "All fields are required" 
+      return res.status(400).json({
+        success: false,
+        message: "All fields are required"
       });
     }
 
     try {
-      // Create transporter
       const transporter = nodemailer.createTransport({
         host: process.env.SMTP_HOST,
         port: parseInt(process.env.SMTP_PORT),
@@ -392,7 +427,6 @@ router.post(
         }
       });
 
-      // Email to you (admin/business owner)
       const adminEmailHTML = `
         <!DOCTYPE html>
         <html>
@@ -457,11 +491,10 @@ router.post(
         </html>
       `;
 
-      // Send email to admin
       await transporter.sendMail({
         from: `"MedTalks Contact Form" <${process.env.EMAIL_USER}>`,
-        to: process.env.EMAIL_USER, // Your business email
-        replyTo: email, // Customer's email for easy reply
+        to: process.env.EMAIL_USER,
+        replyTo: email,
         subject: `Contact Form: ${subject}`,
         html: adminEmailHTML,
         text: `New contact form submission from ${name} (${email})\n\nSubject: ${subject}\n\nMessage:\n${message}`
@@ -475,7 +508,7 @@ router.post(
       });
 
     } catch (error) {
-      console.error('❌ Contact email error:', error);
+      console.error(' Contact email error:', error);
       res.status(500).json({
         success: false,
         message: "Failed to send message. Please try again or contact us directly."

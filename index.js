@@ -7,6 +7,7 @@ import VideoCatController from "./Controllers/VideoCatController.js";
 import VideoController from "./Controllers/VideoController.js";
 import BlogCatController from "./Controllers/BlogCatController.js";
 import BlogsController from "./Controllers/BlogsController.js";
+import ReviewsController from "./Controllers/ReviewsController.js";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 
@@ -38,6 +39,7 @@ app.use("/api/videoscat", VideoCatController);
 app.use("/api/video", VideoController);
 app.use("/api/blogcategory", BlogCatController);
 app.use("/api/blogs", BlogsController);
+app.use("/api/reviews", ReviewsController); // Add this line to include the reviews routes
 
 // ✅ 5. Start server
 app.listen(8000, "0.0.0.0", () => {
